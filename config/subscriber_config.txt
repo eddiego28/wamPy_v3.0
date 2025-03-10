@@ -1,0 +1,6 @@
+{
+  "subscriber": {
+    "realms": ["default", "ADS.MIDSHMI"],
+    "topics": ["com.ads.midshmi.topic", "otro.topic"]
+  }
+}
