@@ -163,29 +163,6 @@ class PublisherTab(QWidget):
             sent_message = json.dumps(config["content"], indent=2, ensure_ascii=False)
             self.addPublisherLog(config["realm"], config["topic"], timestamp, sent_message)
 
-    def getProjectConfig(self):
-        scenarios = [widget.getConfig() for widget in self.msgWidgets]
-        return {"scenarios": scenarios}
-
-    def loadProjectFromConfig(self, pub_config):
-        scenarios = pub_config.get("scenarios", [])
-        self.msgWidgets = []
-        self.next_id = 1
-        while self.msgLayout.count():
-            item = self.msgLayout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-        for scenario in scenarios:
-            from .pubEditor import PublisherEditorWidget
-            widget = MessageConfigWidget(self.next_id, parent=self)
-            widget.realmCombo.setCurrentText(scenario.get("realm", "default"))
-            widget.urlEdit.setText(scenario.get("router_url", "ws://127.0.0.1:60001/ws"))
-            widget.topicEdit.setText(scenario.get("topic", "com.ads.midshmi.topic"))
-            widget.editorWidget.jsonPreview.setPlainText(json.dumps(scenario.get("content", {}), indent=2, ensure_ascii=False))
-            self.msgLayout.addWidget(widget)
-            self.msgWidgets.append(widget)
-            self.next_id += 1
-
     def loadProject(self):
         filepath, _ = QFileDialog.getOpenFileName(self, "Seleccione Archivo de Proyecto", "", "JSON Files (*.json);;All Files (*)")
         if not filepath:
@@ -196,14 +173,42 @@ class PublisherTab(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"No se pudo cargar el proyecto:\n{e}")
             return
-        pub_config = project.get("publisher", {})
-        self.loadProjectFromConfig(pub_config)
-        # Si deseas también actualizar la configuración del suscriptor:
-        sub_config = project.get("subscriber", {})
-        from subscriber.subGUI import SubscriberTab
-        if hasattr(self.parent(), "subscriberTab"):
-            self.parent().subscriberTab.loadProjectFromConfig(sub_config)
-        QMessageBox.information(self, "Proyecto", "Proyecto cargado correctamente.")
+
+        scenarios = project.get("publisher", {}).get("scenarios", [])
+        self.msgWidgets = []
+        self.next_id = 1
+        while self.msgLayout.count():
+            item = self.msgLayout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        for scenario in scenarios:
+            widget = MessageConfigWidget(self.next_id, parent=self)
+            widget.realmCombo.setCurrentText(scenario.get("realm", "default"))
+            widget.urlEdit.setText(scenario.get("router_url", "ws://127.0.0.1:60001/ws"))
+            widget.topicEdit.setText(scenario.get("topic", "com.ads.midshmi.topic"))
+            if "message_file" in scenario:
+                try:
+                    with open(scenario["message_file"], "r", encoding="utf-8") as mf:
+                        msg_data = json.load(mf)
+                    widget.editorWidget.jsonPreview.setPlainText(json.dumps(msg_data, indent=2, ensure_ascii=False))
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Error al cargar {scenario['message_file']}:\n{e}")
+            elif "message" in scenario:
+                widget.editorWidget.jsonPreview.setPlainText(json.dumps(scenario.get("message", {}), indent=2, ensure_ascii=False))
+            self.msgLayout.addWidget(widget)
+            self.msgWidgets.append(widget)
+            self.next_id += 1
+
+            time_str = scenario.get("time", "00:00:00")
+            try:
+                h, m, s = map(int, time_str.split(":"))
+                delay = h * 3600 + m * 60 + s
+            except:
+                delay = 0
+            def schedule_send(msg=scenario.get("message") if "message" in scenario else msg_data, topic=scenario.get("topic", "com.ads.midshmi.topic")):
+                send_message_now(topic, msg, delay=0)
+            QTimer.singleShot(delay * 1000, schedule_send)
 
 class MessageConfigWidget(QGroupBox):
     def __init__(self, msg_id, parent=None):
@@ -219,10 +224,9 @@ class MessageConfigWidget(QGroupBox):
         self.contentWidget = QWidget()
         contentLayout = QVBoxLayout()
         formLayout = QFormLayout()
-        # Realm con opción de agregar manualmente y cargar realms desde archivo
+        # Realm con opción de agregar manualmente
         realmCombo = QComboBox()
         realmCombo.addItems(["default", "ADS.MIDSHMI"])
-        realmCombo.setMinimumWidth(200)
         self.realmCombo = realmCombo
         newRealmEdit = QLineEdit()
         newRealmEdit.setPlaceholderText("Nuevo realm")

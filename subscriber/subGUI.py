@@ -84,6 +84,7 @@ class SubscriberTab(QWidget):
         connLayout.addWidget(QLabel("Realm:"))
         realmCombo = QComboBox()
         realmCombo.addItems(["default", "ADS.MIDSHMI"])
+        realmCombo.setMinimumWidth(200)
         self.realmCombo = realmCombo
         newRealmEdit = QLineEdit()
         newRealmEdit.setPlaceholderText("Nuevo realm")
@@ -237,3 +238,26 @@ class SubscriberTab(QWidget):
     def resetLog(self):
         self.viewer.table.setRowCount(0)
         self.viewer.messages = []
+
+    def getProjectConfig(self):
+        pub_config = self.parent().publisherTab.getProjectConfig()
+        sub_config = self.getProjectConfigLocal()
+        return {"publisher": pub_config, "subscriber": sub_config}
+
+    def getProjectConfigLocal(self):
+        realms = [self.realmCombo.itemText(i) for i in range(self.realmCombo.count())]
+        topics = []
+        for i in range(self.topicsList.count()):
+            topics.append(self.topicsList.item(i).text())
+        return {"realms": realms, "topics": topics}
+
+    def loadProjectFromConfig(self, sub_config):
+        realms = sub_config.get("realms", [])
+        topics = sub_config.get("topics", [])
+        if realms:
+            self.realmCombo.clear()
+            self.realmCombo.addItems(realms)
+        if topics:
+            self.topicsList.clear()
+            for topic in topics:
+                self.topicsList.addItem(topic)
