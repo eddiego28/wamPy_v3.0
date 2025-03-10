@@ -5,40 +5,15 @@
         "realm": "default",
         "router_url": "ws://127.0.0.1:60001/ws",
         "topic": "com.ads.midshmi.topic",
-        "schedule": [
-          {
-            "time": "00:00:02",
-            "message": {
-              "CrEnt_data": {
-                "header": "Mensaje CrEnt",
-                "fields": {
-                  "campo1": "valor1",
-                  "campo2": "valor2",
-                  "detalle": {
-                    "subcampo1": "dato1",
-                    "subcampo2": 100
-                  }
-                }
-              }
-            }
-          },
-          {
-            "time": "00:00:05",
-            "message": {
-              "EP_data": {
-                "header": "Mensaje EP",
-                "fields": {
-                  "campoA": "valorA",
-                  "campoB": "valorB",
-                  "info_extra": {
-                    "subcampoX": "datoX",
-                    "subcampoY": 200
-                  }
-                }
-              }
-            }
-          }
-        ]
+        "time": "00:00:02",
+        "message_file": "datos/CrEnt_data.json"
+      },
+      {
+        "realm": "default",
+        "router_url": "ws://127.0.0.1:60001/ws",
+        "topic": "com.ads.midshmi.topic",
+        "time": "00:00:05",
+        "message_file": "datos/EP_data.json"
       }
     ]
   }

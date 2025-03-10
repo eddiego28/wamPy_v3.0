@@ -2,8 +2,7 @@
 import sys, os, json, datetime, logging, asyncio, threading
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QTableWidget,
-    QTableWidgetItem, QHeaderView, QAbstractItemView, QPushButton, QSplitter,
-    QGroupBox, QFormLayout, QMessageBox, QLineEdit, QTimer, QFileDialog
+    QTableWidgetItem, QHeaderView, QAbstractItemView, QPushButton, QSplitter, QGroupBox, QFormLayout, QMessageBox, QLineEdit, QTimer, QFileDialog
 )
 from PyQt5.QtCore import Qt
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
@@ -102,7 +101,6 @@ class PublisherTab(QWidget):
         self.asyncSendButton = QPushButton("Enviar Mensaje Asincrónico")
         self.asyncSendButton.clicked.connect(self.sendAllAsync)
         topLayout.addWidget(self.asyncSendButton)
-        # Botón para cargar proyecto
         self.loadProjectButton = QPushButton("Cargar Proyecto")
         self.loadProjectButton.clicked.connect(self.loadProject)
         topLayout.addWidget(self.loadProjectButton)
@@ -175,10 +173,8 @@ class PublisherTab(QWidget):
             QMessageBox.critical(self, "Error", f"No se pudo cargar el proyecto:\n{e}")
             return
 
-        # Procesa escenarios del publicador
-        publisher_config = project.get("publisher", {})
-        scenarios = publisher_config.get("scenarios", [])
-        # Limpia mensajes previos
+        scenarios = project.get("publisher", {}).get("scenarios", [])
+        # Limpiar widgets anteriores
         self.msgWidgets = []
         self.next_id = 1
         while self.msgLayout.count():
@@ -186,29 +182,35 @@ class PublisherTab(QWidget):
             if item.widget():
                 item.widget().deleteLater()
 
-        # Por cada escenario, crea un widget y programa los envíos
         for scenario in scenarios:
             widget = MessageConfigWidget(self.next_id, parent=self)
             widget.realmCombo.setCurrentText(scenario.get("realm", "default"))
             widget.urlEdit.setText(scenario.get("router_url", "ws://127.0.0.1:60001/ws"))
             widget.topicEdit.setText(scenario.get("topic", "com.ads.midshmi.topic"))
-            schedule = scenario.get("schedule", [])
-            if schedule:
-                first = schedule[0]
-                widget.editorWidget.jsonPreview.setPlainText(json.dumps(first.get("message", {}), indent=2, ensure_ascii=False))
+            # Cargar mensaje desde el archivo indicado
+            if "message_file" in scenario:
+                try:
+                    with open(scenario["message_file"], "r", encoding="utf-8") as mf:
+                        msg_data = json.load(mf)
+                    widget.editorWidget.jsonPreview.setPlainText(json.dumps(msg_data, indent=2, ensure_ascii=False))
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Error al cargar {scenario['message_file']}:\n{e}")
+            elif "message" in scenario:
+                widget.editorWidget.jsonPreview.setPlainText(json.dumps(scenario.get("message", {}), indent=2, ensure_ascii=False))
             self.msgLayout.addWidget(widget)
             self.msgWidgets.append(widget)
             self.next_id += 1
 
-            # Programa cada entrada del schedule
-            for entry in schedule:
-                time_str = entry.get("time", "00:00:00")
-                try:
-                    h, m, s = map(int, time_str.split(":"))
-                    delay = h * 3600 + m * 60 + s
-                except:
-                    delay = 0
-                QTimer.singleShot(delay * 1000, lambda msg=entry.get("message", {}), topic=scenario.get("topic"): send_message_now(topic, msg, delay=0))
+            # Programar el envío según el tiempo
+            time_str = scenario.get("time", "00:00:00")
+            try:
+                h, m, s = map(int, time_str.split(":"))
+                delay = h * 3600 + m * 60 + s
+            except:
+                delay = 0
+            def schedule_send(msg=scenario.get("message") if "message" in scenario else msg_data, topic=scenario.get("topic", "com.ads.midshmi.topic")):
+                send_message_now(topic, msg, delay=0)
+            QTimer.singleShot(delay * 1000, schedule_send)
 
 class MessageConfigWidget(QGroupBox):
     def __init__(self, msg_id, parent=None):
