@@ -2,7 +2,8 @@
 import sys, os, json, datetime, logging, asyncio, threading
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QTableWidget,
-    QTableWidgetItem, QHeaderView, QAbstractItemView, QPushButton, QSplitter, QGroupBox, QFormLayout, QMessageBox, QLineEdit, QTimer, QFileDialog
+    QTableWidgetItem, QHeaderView, QAbstractItemView, QPushButton, QSplitter,
+    QGroupBox, QFormLayout, QMessageBox, QLineEdit, QTimer, QFileDialog
 )
 from PyQt5.QtCore import Qt
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
@@ -101,6 +102,7 @@ class PublisherTab(QWidget):
         self.asyncSendButton = QPushButton("Enviar Mensaje Asincrónico")
         self.asyncSendButton.clicked.connect(self.sendAllAsync)
         topLayout.addWidget(self.asyncSendButton)
+        # Botón para cargar proyecto
         self.loadProjectButton = QPushButton("Cargar Proyecto")
         self.loadProjectButton.clicked.connect(self.loadProject)
         topLayout.addWidget(self.loadProjectButton)
@@ -162,9 +164,52 @@ class PublisherTab(QWidget):
             sent_message = json.dumps(config["content"], indent=2, ensure_ascii=False)
             self.addPublisherLog(config["realm"], config["topic"], timestamp, sent_message)
 
-# Definición de MessageConfigWidget (sin commonModeCombo)
-import datetime
-from PyQt5.QtWidgets import QGroupBox, QFormLayout, QComboBox, QLineEdit
+    def loadProject(self):
+        filepath, _ = QFileDialog.getOpenFileName(self, "Seleccione Archivo de Proyecto", "", "JSON Files (*.json);;All Files (*)")
+        if not filepath:
+            return
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                project = json.load(f)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"No se pudo cargar el proyecto:\n{e}")
+            return
+
+        # Procesa escenarios del publicador
+        publisher_config = project.get("publisher", {})
+        scenarios = publisher_config.get("scenarios", [])
+        # Limpia mensajes previos
+        self.msgWidgets = []
+        self.next_id = 1
+        while self.msgLayout.count():
+            item = self.msgLayout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Por cada escenario, crea un widget y programa los envíos
+        for scenario in scenarios:
+            widget = MessageConfigWidget(self.next_id, parent=self)
+            widget.realmCombo.setCurrentText(scenario.get("realm", "default"))
+            widget.urlEdit.setText(scenario.get("router_url", "ws://127.0.0.1:60001/ws"))
+            widget.topicEdit.setText(scenario.get("topic", "com.ads.midshmi.topic"))
+            schedule = scenario.get("schedule", [])
+            if schedule:
+                first = schedule[0]
+                widget.editorWidget.jsonPreview.setPlainText(json.dumps(first.get("message", {}), indent=2, ensure_ascii=False))
+            self.msgLayout.addWidget(widget)
+            self.msgWidgets.append(widget)
+            self.next_id += 1
+
+            # Programa cada entrada del schedule
+            for entry in schedule:
+                time_str = entry.get("time", "00:00:00")
+                try:
+                    h, m, s = map(int, time_str.split(":"))
+                    delay = h * 3600 + m * 60 + s
+                except:
+                    delay = 0
+                QTimer.singleShot(delay * 1000, lambda msg=entry.get("message", {}), topic=scenario.get("topic"): send_message_now(topic, msg, delay=0))
+
 class MessageConfigWidget(QGroupBox):
     def __init__(self, msg_id, parent=None):
         super().__init__(parent)
