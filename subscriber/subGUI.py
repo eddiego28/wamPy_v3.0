@@ -26,7 +26,6 @@ class MultiTopicSubscriber(ApplicationSession):
 
     def on_event(self, topic, *args, **kwargs):
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Conservamos la estructura original en args y kwargs
         message_data = {"args": args, "kwargs": kwargs}
         message_json = json.dumps(message_data, indent=2, ensure_ascii=False)
         log_to_file(timestamp, topic, self.config.realm, message_json)
@@ -109,7 +108,6 @@ class SubscriberTab(QWidget):
         topicsLayout.addLayout(btnLayout)
         configLayout.addLayout(topicsLayout)
 
-        # Botones para iniciar, pausar y resetear la suscripción
         btnSubLayout = QHBoxLayout()
         self.startButton = QPushButton("Iniciar Suscripción")
         self.startButton.clicked.connect(self.startSubscription)
@@ -127,7 +125,6 @@ class SubscriberTab(QWidget):
         configLayout.addStretch()
 
         mainLayout.addWidget(configWidget, 1)
-
         self.viewer = MessageViewer(self)
         mainLayout.addWidget(self.viewer, 2)
         self.setLayout(mainLayout)
@@ -155,16 +152,6 @@ class SubscriberTab(QWidget):
             self.newTopicEdit.clear()
 
     def loadProjectConfig(self):
-        """
-        Carga un archivo de configuración para actualizar realms y topics.
-        Estructura de ejemplo:
-        {
-            "subscriber": {
-                "realms": ["default", "ADS.MIDSHMI"],
-                "topics": ["com.ads.midshmi.topic", "otro.topic"]
-            }
-        }
-        """
         filepath, _ = QFileDialog.getOpenFileName(self, "Seleccione Configuración de Proyecto", "", "JSON Files (*.json);;All Files (*)")
         if not filepath:
             return
@@ -206,6 +193,7 @@ class SubscriberTab(QWidget):
                 Q_ARG(str, topic),
                 Q_ARG(dict, content)
             )
+
         start_subscriber(url, realm, topics, on_message_callback=on_message_callback)
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.addSubscriberLog(realm, "Suscripción iniciada", timestamp, {"info": f"Suscriptor iniciado: realm={realm}, topics={topics}"})

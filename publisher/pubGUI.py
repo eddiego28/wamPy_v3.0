@@ -39,7 +39,6 @@ def send_message_now(topic, message, delay=0):
     async def _send():
         if delay > 0:
             await asyncio.sleep(delay)
-        # Forzamos a enviar como kwargs si message es dict
         if isinstance(message, dict):
             global_session.publish(topic, **message)
         else:
@@ -102,7 +101,6 @@ class PublisherTab(QWidget):
         self.asyncSendButton = QPushButton("Enviar Mensaje Asincrónico")
         self.asyncSendButton.clicked.connect(self.sendAllAsync)
         topLayout.addWidget(self.asyncSendButton)
-        # Botón para cargar un proyecto de escenarios
         self.loadProjectButton = QPushButton("Cargar Proyecto")
         self.loadProjectButton.clicked.connect(self.loadProject)
         topLayout.addWidget(self.loadProjectButton)
@@ -148,7 +146,6 @@ class PublisherTab(QWidget):
             start_publisher(config["router_url"], config["realm"], config["topic"])
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.addPublisherLog(config["realm"], config["topic"], timestamp, f"Publicador iniciado: {config}")
-            # Si el tiempo es distinto de "00:00:00", se programa el envío
             if widget.editorWidget.commonTimeEdit.text().strip() != "00:00:00":
                 try:
                     h, m, s = map(int, widget.editorWidget.commonTimeEdit.text().strip().split(":"))
@@ -165,7 +162,7 @@ class PublisherTab(QWidget):
             sent_message = json.dumps(config["content"], indent=2, ensure_ascii=False)
             self.addPublisherLog(config["realm"], config["topic"], timestamp, sent_message)
 
-# Definición de MessageConfigWidget
+# Definición de MessageConfigWidget (sin commonModeCombo)
 import datetime
 from PyQt5.QtWidgets import QGroupBox, QFormLayout, QComboBox, QLineEdit
 class MessageConfigWidget(QGroupBox):
@@ -186,7 +183,7 @@ class MessageConfigWidget(QGroupBox):
         self.realmCombo = QComboBox()
         self.realmCombo.addItems(["default", "ADS.MIDSHMI"])
         formLayout.addRow("Realm:", self.realmCombo)
-        self.urlEdit = QLineEdit("ws://127.0.0.1:60001")
+        self.urlEdit = QLineEdit("ws://127.0.0.1:60001/ws")
         formLayout.addRow("Router URL:", self.urlEdit)
         self.topicEdit = QLineEdit("com.ads.midshmi.topic")
         formLayout.addRow("Topic:", self.topicEdit)
