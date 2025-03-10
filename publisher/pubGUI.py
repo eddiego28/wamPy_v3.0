@@ -2,7 +2,8 @@
 import sys, os, json, datetime, logging, asyncio, threading
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QTableWidget,
-    QTableWidgetItem, QHeaderView, QAbstractItemView, QPushButton, QSplitter, QGroupBox, QFormLayout, QMessageBox, QLineEdit, QTimer, QFileDialog
+    QTableWidgetItem, QHeaderView, QAbstractItemView, QPushButton, QSplitter,
+    QGroupBox, QFormLayout, QMessageBox, QLineEdit, QTimer, QFileDialog
 )
 from PyQt5.QtCore import Qt
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
@@ -174,7 +175,6 @@ class PublisherTab(QWidget):
             return
 
         scenarios = project.get("publisher", {}).get("scenarios", [])
-        # Limpiar widgets anteriores
         self.msgWidgets = []
         self.next_id = 1
         while self.msgLayout.count():
@@ -187,7 +187,6 @@ class PublisherTab(QWidget):
             widget.realmCombo.setCurrentText(scenario.get("realm", "default"))
             widget.urlEdit.setText(scenario.get("router_url", "ws://127.0.0.1:60001/ws"))
             widget.topicEdit.setText(scenario.get("topic", "com.ads.midshmi.topic"))
-            # Cargar mensaje desde el archivo indicado
             if "message_file" in scenario:
                 try:
                     with open(scenario["message_file"], "r", encoding="utf-8") as mf:
@@ -201,7 +200,6 @@ class PublisherTab(QWidget):
             self.msgWidgets.append(widget)
             self.next_id += 1
 
-            # Programar el envío según el tiempo
             time_str = scenario.get("time", "00:00:00")
             try:
                 h, m, s = map(int, time_str.split(":"))
@@ -225,21 +223,30 @@ class MessageConfigWidget(QGroupBox):
     def initUI(self):
         self.contentWidget = QWidget()
         contentLayout = QVBoxLayout()
-
         formLayout = QFormLayout()
-        self.realmCombo = QComboBox()
-        self.realmCombo.addItems(["default", "ADS.MIDSHMI"])
-        formLayout.addRow("Realm:", self.realmCombo)
+        # Realm con opción de agregar manualmente
+        realmCombo = QComboBox()
+        realmCombo.addItems(["default", "ADS.MIDSHMI"])
+        self.realmCombo = realmCombo
+        newRealmEdit = QLineEdit()
+        newRealmEdit.setPlaceholderText("Nuevo realm")
+        self.newRealmEdit = newRealmEdit
+        addRealmButton = QPushButton("Agregar realm")
+        addRealmButton.clicked.connect(self.addRealm)
+        self.addRealmButton = addRealmButton
+        realmLayout = QHBoxLayout()
+        realmLayout.addWidget(realmCombo)
+        realmLayout.addWidget(newRealmEdit)
+        realmLayout.addWidget(addRealmButton)
+        formLayout.addRow("Realm:", realmLayout)
         self.urlEdit = QLineEdit("ws://127.0.0.1:60001/ws")
         formLayout.addRow("Router URL:", self.urlEdit)
         self.topicEdit = QLineEdit("com.ads.midshmi.topic")
         formLayout.addRow("Topic:", self.topicEdit)
         contentLayout.addLayout(formLayout)
-
         from .pubEditor import PublisherEditorWidget
         self.editorWidget = PublisherEditorWidget(parent=self)
         contentLayout.addWidget(self.editorWidget)
-
         self.sendButton = QPushButton("Enviar")
         self.sendButton.clicked.connect(self.sendMessage)
         if self.editorWidget.commonTimeEdit.text().strip() == "00:00:00":
@@ -247,11 +254,16 @@ class MessageConfigWidget(QGroupBox):
         else:
             self.sendButton.setEnabled(False)
         contentLayout.addWidget(self.sendButton)
-
         self.contentWidget.setLayout(contentLayout)
         mainLayout = QVBoxLayout()
         mainLayout.addWidget(self.contentWidget)
         self.setLayout(mainLayout)
+
+    def addRealm(self):
+        new_realm = self.newRealmEdit.text().strip()
+        if new_realm and new_realm not in [self.realmCombo.itemText(i) for i in range(self.realmCombo.count())]:
+            self.realmCombo.addItem(new_realm)
+            self.newRealmEdit.clear()
 
     def toggleContent(self, checked):
         self.contentWidget.setVisible(checked)

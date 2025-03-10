@@ -82,9 +82,20 @@ class SubscriberTab(QWidget):
 
         connLayout = QHBoxLayout()
         connLayout.addWidget(QLabel("Realm:"))
-        self.realmCombo = QComboBox()
-        self.realmCombo.addItems(["default", "ADS.MIDSHMI"])
-        connLayout.addWidget(self.realmCombo)
+        realmCombo = QComboBox()
+        realmCombo.addItems(["default", "ADS.MIDSHMI"])
+        self.realmCombo = realmCombo
+        newRealmEdit = QLineEdit()
+        newRealmEdit.setPlaceholderText("Nuevo realm")
+        self.newRealmEdit = newRealmEdit
+        addRealmButton = QPushButton("Agregar realm")
+        addRealmButton.clicked.connect(self.addRealm)
+        self.addRealmButton = addRealmButton
+        realmLayout = QHBoxLayout()
+        realmLayout.addWidget(realmCombo)
+        realmLayout.addWidget(newRealmEdit)
+        realmLayout.addWidget(addRealmButton)
+        connLayout.addLayout(realmLayout)
         connLayout.addWidget(QLabel("Router URL:"))
         self.urlEdit = QLineEdit("ws://127.0.0.1:60001/ws")
         connLayout.addWidget(self.urlEdit)
@@ -128,6 +139,12 @@ class SubscriberTab(QWidget):
         self.viewer = MessageViewer(self)
         mainLayout.addWidget(self.viewer, 2)
         self.setLayout(mainLayout)
+
+    def addRealm(self):
+        new_realm = self.newRealmEdit.text().strip()
+        if new_realm and new_realm not in [self.realmCombo.itemText(i) for i in range(self.realmCombo.count())]:
+            self.realmCombo.addItem(new_realm)
+            self.newRealmEdit.clear()
 
     def loadTopics(self):
         from PyQt5.QtWidgets import QFileDialog, QMessageBox
