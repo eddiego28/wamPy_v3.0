@@ -38,36 +38,38 @@ class PublisherEditorWidget(QWidget):
     def initUI(self):
         mainLayout = QVBoxLayout()
 
-        # Botones para cargar y convertir JSON
+        # Botones para cargar, validar y actualizar la vista
         btnLayout = QHBoxLayout()
         self.importButton = QPushButton("Cargar JSON desde Archivo")
         self.importButton.clicked.connect(self.loadJSONFromFile)
         btnLayout.addWidget(self.importButton)
+        
+        self.validateButton = QPushButton("Validar JSON")
+        self.validateButton.clicked.connect(self.validateJson)
+        btnLayout.addWidget(self.validateButton)
+        
         self.convertButton = QPushButton("Actualizar Vista Árbol")
         self.convertButton.clicked.connect(self.convertToTree)
         btnLayout.addWidget(self.convertButton)
         mainLayout.addLayout(btnLayout)
 
-        # Configuración (opcional, aquí solo dejamos el tiempo)
+        # Configuración: solo el tiempo (opcional)
         commonLayout = QHBoxLayout()
         commonLayout.addWidget(QLabel("Tiempo (HH:MM:SS):"))
         self.commonTimeEdit = QLineEdit("00:00:00")
         commonLayout.addWidget(self.commonTimeEdit)
         mainLayout.addLayout(commonLayout)
 
-        # QTabWidget con dos pestañas fijas: "JSON" y "Árbol"
+        # QTabWidget con dos pestañas: "JSON" y "Árbol"
         self.previewTabWidget = QTabWidget()
         self.previewTabWidget.setMinimumHeight(400)
-
         self.jsonPreview = QTextEdit()
         self.jsonPreview.setReadOnly(False)
         self.previewTabWidget.addTab(self.jsonPreview, "JSON")
-
         self.treePreview = QTreeWidget()
         self.treePreview.setColumnCount(2)
         self.treePreview.setHeaderLabels(["Clave", "Valor"])
         self.previewTabWidget.addTab(self.treePreview, "Árbol")
-
         mainLayout.addWidget(self.previewTabWidget)
         self.setLayout(mainLayout)
 
@@ -82,6 +84,14 @@ class PublisherEditorWidget(QWidget):
             self.buildTreePreview(data)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"No se pudo cargar el JSON:\n{e}")
+
+    def validateJson(self):
+        try:
+            data = json.loads(self.jsonPreview.toPlainText())
+            self.buildTreePreview(data)
+            QMessageBox.information(self, "Validación", "JSON válido.")
+        except Exception as e:
+            QMessageBox.critical(self, "Error de Validación", f"El JSON no es válido:\n{e}")
 
     def convertToTree(self):
         try:
