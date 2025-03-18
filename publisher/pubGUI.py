@@ -3,7 +3,7 @@ import sys, os, json, datetime, logging, asyncio, threading
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QTableWidget,
     QTableWidgetItem, QHeaderView, QAbstractItemView, QPushButton, QSplitter,
-    QGroupBox, QFormLayout, QMessageBox, QLineEdit, QFileDialog, QComboBox
+    QGroupBox, QFormLayout, QMessageBox, QLineEdit, QFileDialog, QComboBox, QRadioButton
 )
 from PyQt5.QtCore import Qt, QTimer
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
@@ -68,7 +68,7 @@ class PublisherMessageViewer(QWidget):
         self.table.itemDoubleClicked.connect(self.showDetails)
         layout.addWidget(self.table)
         self.setLayout(layout)
-        self.setFixedHeight(200)
+        # Se eliminó la restricción de altura para que se muestre todo el log
 
     def add_message(self, realm, topic, timestamp, details):
         if isinstance(details, str):
@@ -117,7 +117,7 @@ class PublisherTab(QWidget):
         splitter.addWidget(self.msgArea)
         self.viewer = PublisherMessageViewer(self)
         splitter.addWidget(self.viewer)
-        splitter.setSizes([500, 200])
+        splitter.setSizes([500, 300])
         layout.addWidget(splitter)
 
         connLayout = QHBoxLayout()
@@ -146,6 +146,7 @@ class PublisherTab(QWidget):
             config = widget.getConfig()
             start_publisher(config["router_url"], config["realm"], config["topic"])
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Se registra en el log el inicio del publicador mostrando realm y topic
             self.addPublisherLog(config["realm"], config["topic"], timestamp, f"Publicador iniciado: {config}")
             if widget.editorWidget.commonTimeEdit.text().strip() != "00:00:00":
                 try:
@@ -198,7 +199,7 @@ class PublisherTab(QWidget):
             return
         pub_config = project.get("publisher", {})
         self.loadProjectFromConfig(pub_config)
-        # Si deseas también actualizar la configuración del suscriptor:
+        # Si se desea, también se actualiza la configuración del suscriptor:
         sub_config = project.get("subscriber", {})
         from subscriber.subGUI import SubscriberTab
         if hasattr(self.parent(), "subscriberTab"):
@@ -220,10 +221,10 @@ class MessageConfigWidget(QGroupBox):
         contentLayout = QVBoxLayout()
         formLayout = QFormLayout()
         
-        # --- Modificación 2: Aumentar tamaño del box de realm ---
+        # Aumentar tamaño del box de realm
         self.realmCombo = QComboBox()
         self.realmCombo.addItems(["default", "ADS.MIDSHMI"])
-        self.realmCombo.setMinimumWidth(300)  # Se aumenta el ancho para que se vea completo
+        self.realmCombo.setMinimumWidth(300)
         self.newRealmEdit = QLineEdit()
         self.newRealmEdit.setPlaceholderText("Nuevo realm")
         addRealmButton = QPushButton("Agregar realm")
@@ -244,7 +245,7 @@ class MessageConfigWidget(QGroupBox):
         self.editorWidget = PublisherEditorWidget(parent=self)
         contentLayout.addWidget(self.editorWidget)
         
-        # --- Modificación 1: Agregar selección de modo de envío ---
+        # Agregar selección de modo de envío (colocado justo encima del campo de tiempo)
         timeModeLayout = QHBoxLayout()
         timeModeLayout.addWidget(QLabel("Modo de envío:"))
         self.onDemandRadio = QRadioButton("On-Demand")
@@ -258,7 +259,7 @@ class MessageConfigWidget(QGroupBox):
         
         self.sendButton = QPushButton("Enviar")
         self.sendButton.clicked.connect(self.sendMessage)
-        # Se habilita o deshabilita el botón según el contenido del QLineEdit de tiempo (esto lo puedes ajustar según tu lógica)
+        # Habilita o deshabilita el botón según la lógica del tiempo (ajústalo si es necesario)
         if self.editorWidget.commonTimeEdit.text().strip() == "00:00:00":
             self.sendButton.setEnabled(True)
         else:
@@ -286,7 +287,7 @@ class MessageConfigWidget(QGroupBox):
             self.setTitle(f"Mensaje #{self.msg_id}")
 
     def sendMessage(self):
-        # --- Determinar el retraso según el modo de envío seleccionado ---
+        # Determinar el retraso según el modo de envío seleccionado
         if self.onDemandRadio.isChecked():
             delay = 0
         elif self.programadoRadio.isChecked():
@@ -303,9 +304,7 @@ class MessageConfigWidget(QGroupBox):
                 QMessageBox.critical(self, "Error", f"Tiempo inválido para modo Tiempo del Sistema:\n{e}")
                 return
             now = datetime.datetime.now()
-            # Se interpreta la entrada como la hora exacta de envío
             scheduled_time = now.replace(hour=h, minute=m, second=s, microsecond=0)
-            # Si la hora ya pasó hoy, se programa para el día siguiente
             if scheduled_time < now:
                 scheduled_time += datetime.timedelta(days=1)
             delay = (scheduled_time - now).total_seconds()
@@ -326,7 +325,6 @@ class MessageConfigWidget(QGroupBox):
         publish_time_str = publish_time.strftime("%Y-%m-%d %H:%M:%S")
         sent_message = json.dumps(data, indent=2, ensure_ascii=False)
         
-        # --- Modificación 3: Registrar el mensaje enviado en el QTable del publicador ---
         if hasattr(self.parent(), "addPublisherLog"):
             self.parent().addPublisherLog(self.realmCombo.currentText(), self.topicEdit.text().strip(), publish_time_str, sent_message)
 
