@@ -71,7 +71,7 @@ class PublisherMessageViewer(QWidget):
         # Se eliminó la restricción de altura para ver todo el log
 
     def add_message(self, realm, topic, timestamp, details):
-        # Se quitan los saltos de línea para la vista del log (pero el detalle se mostrará en árbol)
+        # Se quitan los saltos de línea para la vista del log (el detalle se mostrará en árbol)
         if isinstance(details, str):
             details = details.replace("\n", " ")
         row = self.table.rowCount()
@@ -146,8 +146,7 @@ class PublisherTab(QWidget):
         for widget in self.msgWidgets:
             config = widget.getConfig()
             start_publisher(config["router_url"], config["realm"], config["topic"])
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.addPublisherLog(config["realm"], config["topic"], timestamp, f"Publicador iniciado: {config}")
+            # No se registra aquí "Publicador iniciado" para evitar duplicados.
             if widget.editorWidget.commonTimeEdit.text().strip() != "00:00:00":
                 try:
                     h, m, s = map(int, widget.editorWidget.commonTimeEdit.text().strip().split(":"))
@@ -158,11 +157,14 @@ class PublisherTab(QWidget):
 
     def sendAllAsync(self):
         for widget in self.msgWidgets:
-            config = widget.getConfig()
-            send_message_now(config["topic"], config["content"], delay=0)
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            sent_message = json.dumps(config["content"], indent=2, ensure_ascii=False)
-            self.addPublisherLog(config["realm"], config["topic"], timestamp, sent_message)
+            # Evitar el envío duplicado si ya se envió de forma individual
+            if not widget.message_sent:
+                config = widget.getConfig()
+                send_message_now(config["topic"], config["content"], delay=0)
+                widget.message_sent = True
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                sent_message = json.dumps(config["content"], indent=2, ensure_ascii=False)
+                self.addPublisherLog(config["realm"], config["topic"], timestamp, sent_message)
 
     def getProjectConfig(self):
         scenarios = [widget.getConfig() for widget in self.msgWidgets]
@@ -199,9 +201,8 @@ class PublisherTab(QWidget):
             return
         pub_config = project.get("publisher", {})
         self.loadProjectFromConfig(pub_config)
-        # Si se desea, también se actualiza la configuración del suscriptor:
-        sub_config = project.get("subscriber", {})
         from subscriber.subGUI import SubscriberTab
+        sub_config = project.get("subscriber", {})
         if hasattr(self.parent(), "subscriberTab"):
             self.parent().subscriberTab.loadProjectFromConfig(sub_config)
         QMessageBox.information(self, "Proyecto", "Proyecto cargado correctamente.")
@@ -210,6 +211,7 @@ class MessageConfigWidget(QGroupBox):
     def __init__(self, msg_id, parent=None):
         super().__init__(parent)
         self.msg_id = msg_id
+        self.message_sent = False  # Flag para evitar duplicados
         self.setTitle(f"Mensaje #{self.msg_id}")
         self.setCheckable(True)
         self.setChecked(True)
@@ -245,7 +247,7 @@ class MessageConfigWidget(QGroupBox):
         self.editorWidget = PublisherEditorWidget(parent=self)
         contentLayout.addWidget(self.editorWidget)
         
-        # Agregar selección de modo de envío (colocado justo encima del campo de tiempo)
+        # Selección de modo de envío, colocada justo encima del campo de tiempo
         timeModeLayout = QHBoxLayout()
         timeModeLayout.addWidget(QLabel("Modo de envío:"))
         self.onDemandRadio = QRadioButton("On-Demand")
@@ -259,7 +261,7 @@ class MessageConfigWidget(QGroupBox):
         
         self.sendButton = QPushButton("Enviar")
         self.sendButton.clicked.connect(self.sendMessage)
-        # Habilitar o deshabilitar el botón según el contenido del campo de tiempo (ajusta la lógica si lo requieres)
+        # Habilitar/deshabilitar botón según el campo de tiempo
         if self.editorWidget.commonTimeEdit.text().strip() == "00:00:00":
             self.sendButton.setEnabled(True)
         else:
@@ -287,7 +289,8 @@ class MessageConfigWidget(QGroupBox):
             self.setTitle(f"Mensaje #{self.msg_id}")
 
     def sendMessage(self):
-        # Determinar el retraso según el modo de envío seleccionado
+        if self.message_sent:
+            return  # Evita el envío duplicado
         if self.onDemandRadio.isChecked():
             delay = 0
         elif self.programadoRadio.isChecked():
@@ -320,13 +323,12 @@ class MessageConfigWidget(QGroupBox):
         
         from .pubGUI import send_message_now
         send_message_now(topic, data, delay=delay)
-        
+        self.message_sent = True
         publish_time = datetime.datetime.now() + datetime.timedelta(seconds=delay)
         publish_time_str = publish_time.strftime("%Y-%m-%d %H:%M:%S")
         sent_message = json.dumps(data, indent=2, ensure_ascii=False)
-        
         if hasattr(self.parent(), "addPublisherLog"):
-            self.parent().addPublisherLog(self.realmCombo.currentText(), self.topicEdit.text().strip(), publish_time_str, sent_message)
+            self.parent().addPublisherLog(self.realmCombo.currentText(), topic, publish_time_str, sent_message)
 
     def getConfig(self):
         return {
