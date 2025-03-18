@@ -4,7 +4,7 @@ def sendMessage(self):
     for r in range(self.realmTable.rowCount()):
         r_item = self.realmTable.item(r, 0)
         if r_item and r_item.checkState() == Qt.Checked:
-            selected_realms.append(r_item.text().strip())
+            selected_realms.append(str(r_item.text().strip()))  # 🔹 Forzar a str
 
     # Si no hay ningún realm seleccionado, mostrar error
     if not selected_realms:
@@ -18,7 +18,7 @@ def sendMessage(self):
         for t in range(self.topicTable.rowCount()):
             t_item = self.topicTable.item(t, 0)
             if t_item and t_item.checkState() == Qt.Checked:
-                selected_topics_by_realm[realm].append(t_item.text().strip())
+                selected_topics_by_realm[realm].append(str(t_item.text().strip()))  # 🔹 Forzar a str
 
     # Si no hay topics seleccionados, mostrar error
     if all(len(topics) == 0 for topics in selected_topics_by_realm.values()):
@@ -48,7 +48,8 @@ def sendMessage(self):
     for realm in selected_realms:
         router_url = self.publisherTab.realms_topics.get(realm, {}).get("router_url", "ws://127.0.0.1:60001/ws")
         for topic in selected_topics_by_realm[realm]:
-            start_publisher(router_url, realm, topic)
+            print(f"📢 Publicando en realm={realm} con topic={topic}")  # Debugging
+            start_publisher(router_url, str(realm), str(topic))  # 🔹 Forzar a str
             send_message_now(topic, content, delay)
 
     # Registrar en la tabla de mensajes enviados
