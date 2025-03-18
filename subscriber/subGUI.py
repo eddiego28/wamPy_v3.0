@@ -73,7 +73,7 @@ class MessageViewer(QWidget):
 class SubscriberTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.subMessages = []
+        self.realms_data = {}  # Para almacenar la configuración cargada
         self.initUI()
     def initUI(self):
         mainLayout = QHBoxLayout(self)
@@ -82,19 +82,16 @@ class SubscriberTab(QWidget):
 
         connLayout = QHBoxLayout()
         connLayout.addWidget(QLabel("Realm:"))
-        realmCombo = QComboBox()
-        realmCombo.addItems(["default", "ADS.MIDSHMI"])
-        realmCombo.setMinimumWidth(200)
-        self.realmCombo = realmCombo
-        newRealmEdit = QLineEdit()
-        newRealmEdit.setPlaceholderText("Nuevo realm")
-        self.newRealmEdit = newRealmEdit
+        self.realmCombo = QComboBox()
+        self.realmCombo.setMinimumWidth(200)
+        self.realmCombo.currentIndexChanged.connect(self.updateRealmInfo)
+        self.newRealmEdit = QLineEdit()
+        self.newRealmEdit.setPlaceholderText("Nuevo realm")
         addRealmButton = QPushButton("Agregar realm")
         addRealmButton.clicked.connect(self.addRealm)
-        self.addRealmButton = addRealmButton
         realmLayout = QHBoxLayout()
-        realmLayout.addWidget(realmCombo)
-        realmLayout.addWidget(newRealmEdit)
+        realmLayout.addWidget(self.realmCombo)
+        realmLayout.addWidget(self.newRealmEdit)
         realmLayout.addWidget(addRealmButton)
         connLayout.addLayout(realmLayout)
         connLayout.addWidget(QLabel("Router URL:"))
@@ -148,7 +145,6 @@ class SubscriberTab(QWidget):
             self.newRealmEdit.clear()
 
     def loadTopics(self):
-        from PyQt5.QtWidgets import QFileDialog, QMessageBox
         filepath, _ = QFileDialog.getOpenFileName(self, "Seleccione JSON de Topics", "", "JSON Files (*.json);;All Files (*)")
         if not filepath:
             return
@@ -260,4 +256,14 @@ class SubscriberTab(QWidget):
         if topics:
             self.topicsList.clear()
             for topic in topics:
+                self.topicsList.addItem(topic)
+
+    def updateRealmInfo(self):
+        # Si se cargó la configuración de realms (nuevo formato), se actualiza el router URL y topics según la selección
+        realm = self.realmCombo.currentText()
+        if self.realms_data and realm in self.realms_data:
+            config = self.realms_data[realm]
+            self.urlEdit.setText(config.get("router_url", ""))
+            self.topicsList.clear()
+            for topic in config.get("topics", []):
                 self.topicsList.addItem(topic)

@@ -68,9 +68,10 @@ class PublisherMessageViewer(QWidget):
         self.table.itemDoubleClicked.connect(self.showDetails)
         layout.addWidget(self.table)
         self.setLayout(layout)
-        # Se eliminó la restricción de altura para que se muestre todo el log
+        # Se eliminó la restricción de altura para ver todo el log
 
     def add_message(self, realm, topic, timestamp, details):
+        # Se quitan los saltos de línea para la vista del log (pero el detalle se mostrará en árbol)
         if isinstance(details, str):
             details = details.replace("\n", " ")
         row = self.table.rowCount()
@@ -146,7 +147,6 @@ class PublisherTab(QWidget):
             config = widget.getConfig()
             start_publisher(config["router_url"], config["realm"], config["topic"])
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # Se registra en el log el inicio del publicador mostrando realm y topic
             self.addPublisherLog(config["realm"], config["topic"], timestamp, f"Publicador iniciado: {config}")
             if widget.editorWidget.commonTimeEdit.text().strip() != "00:00:00":
                 try:
@@ -259,7 +259,7 @@ class MessageConfigWidget(QGroupBox):
         
         self.sendButton = QPushButton("Enviar")
         self.sendButton.clicked.connect(self.sendMessage)
-        # Habilita o deshabilita el botón según la lógica del tiempo (ajústalo si es necesario)
+        # Habilitar o deshabilitar el botón según el contenido del campo de tiempo (ajusta la lógica si lo requieres)
         if self.editorWidget.commonTimeEdit.text().strip() == "00:00:00":
             self.sendButton.setEnabled(True)
         else:
