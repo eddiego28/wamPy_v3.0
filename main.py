@@ -1,5 +1,5 @@
 # interface/mainGUI.py
-import sys, json
+import sys, os, json
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QWidget, QHBoxLayout, QPushButton, QVBoxLayout, QFileDialog, QMessageBox
 from publisher.pubGUI import PublisherTab
 from subscriber.subGUI import SubscriberTab
@@ -10,6 +10,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Sistema WAMP: Publicador y Suscriptor")
         self.resize(900, 700)
         self.initUI()
+        self.loadRealmTopicConfig()  # Carga el archivo de configuración al iniciar
 
     def initUI(self):
         centralWidget = QWidget()
@@ -33,10 +34,27 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(centralWidget)
 
-    def getProjectConfig(self):
-        pub_config = self.publisherTab.getProjectConfig()  # Implementado en PublisherTab
-        sub_config = self.subscriberTab.getProjectConfigLocal()  # Implementado en SubscriberTab
-        return {"publisher": pub_config, "subscriber": sub_config}
+    def loadRealmTopicConfig(self):
+        # Se carga el archivo de configuración ubicado en config\realms_topic_config.json
+        config_path = os.path.join("config", "realm_topic_config.json")
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            realms_data = data.get("realms", {})
+            if realms_data:
+                # Se almacena la configuración en el SubscriberTab
+                self.subscriberTab.realms_data = realms_data
+                self.subscriberTab.realmCombo.clear()
+                for realm_name in realms_data.keys():
+                    self.subscriberTab.realmCombo.addItem(realm_name)
+                # Se actualizan router URL y topics para el primer realm
+                first_realm = list(realms_data.keys())[0]
+                self.subscriberTab.urlEdit.setText(realms_data[first_realm].get("router_url", ""))
+                self.subscriberTab.topicsList.clear()
+                for topic in realms_data[first_realm].get("topics", []):
+                    self.subscriberTab.topicsList.addItem(topic)
+        except Exception as e:
+            print(f"Error al cargar realm_topic_config: {e}")
 
     def loadProject(self):
         filepath, _ = QFileDialog.getOpenFileName(self, "Cargar Proyecto", "", "JSON Files (*.json);;All Files (*)")
@@ -65,6 +83,11 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Proyecto", "Proyecto guardado correctamente.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"No se pudo guardar el proyecto:\n{e}")
+
+    def getProjectConfig(self):
+        pub_config = self.publisherTab.getProjectConfig()
+        sub_config = self.subscriberTab.getProjectConfigLocal()
+        return {"publisher": pub_config, "subscriber": sub_config}
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
